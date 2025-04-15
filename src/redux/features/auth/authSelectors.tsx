@@ -2,6 +2,7 @@ import { RootState } from "../store";
 
 // Selector to get the current user
 export const selectUser = (state: RootState) => state.auth.user;
+export const selectAllUsers = (state: RootState) => state.auth.users;
 
 // Selector to get the authentication status (true if logged in)
 export const selectIsAuthenticated = (state: RootState) =>

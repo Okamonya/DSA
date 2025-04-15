@@ -16,6 +16,12 @@ import AllAnnouncementsScreen from "../components/community/AllAnnouncements";
 import SingleSessionScreen from "../screens/sessions/SingleSession";
 import AllSessionsScreen from "../screens/sessions/AllSessions";
 import GuidelinesScreen from "../screens/resources/Guidelines";
+import CreateAnnouncementsScreen from "../screens/Announcement/CreateAnnouncement";
+import CreateSessionsScreen from "../screens/sessions/CreateSession";
+import SplashScreenOne from "../components/splashscreen/SplashScreenOne";
+import SplashScreenTwo from "../components/splashscreen/SplashScreenTwo";
+import TrainingSplashScreen from "../components/splashscreen/TrainingSplashScreen";
+import FSOListPage from "../components/users/Users";
 
 const Stack = createStackNavigator();
 
@@ -25,6 +31,21 @@ const AppNavigator: React.FC = () => (
             <Stack.Screen
                 name="Login"
                 component={LoginScreen}
+                options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="SplashScreenOne"
+                component={SplashScreenOne}
+                options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="SplashScreenTwo"
+                component={SplashScreenTwo}
+                options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="TrainingSplash"
+                component={TrainingSplashScreen}
                 options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -84,6 +105,15 @@ const AppNavigator: React.FC = () => (
                 )}
             />
             <Stack.Screen
+                name="Users"
+                options={{ headerShown: false }}
+                children={() => (
+                    <AuthGuard>
+                        <FSOListPage />
+                    </AuthGuard>
+                )}
+            />
+            <Stack.Screen
                 name="MonthlyTemplates"
                 options={{ headerShown: false }}
                 children={() => (
@@ -120,11 +150,29 @@ const AppNavigator: React.FC = () => (
                 )}
             />
             <Stack.Screen
+                name="CreateAnnouncement"
+                options={{ headerShown: false }}
+                children={() => (
+                    <AuthGuard>
+                        <CreateAnnouncementsScreen />
+                    </AuthGuard>
+                )}
+            />
+            <Stack.Screen
                 name="AllSessions"
                 options={{ headerShown: false }}
                 children={() => (
                     <AuthGuard>
                         <AllSessionsScreen />
+                    </AuthGuard>
+                )}
+            />
+            <Stack.Screen
+                name="CreateSession"
+                options={{ headerShown: false }}
+                children={() => (
+                    <AuthGuard>
+                        <CreateSessionsScreen />
                     </AuthGuard>
                 )}
             />

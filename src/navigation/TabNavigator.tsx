@@ -1,6 +1,6 @@
 // src/navigation/TabsNavigator.tsx
 import React from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,26 +10,29 @@ import AllCoursesScreen from "../screens/training/AllCoursesScreen";
 import ResourcesScreen from "../screens/resources/ResourcesScreen";
 import CommunityScreen from "../screens/community/CommunityScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
+import UsersListPage from "../components/users/Users";
+import { selectUser } from "../redux/features/auth/authSelectors";
 
 const Tab = createBottomTabNavigator();
 
-const getIconColor = (focused: boolean) => ({
-    backgroundColor: focused ? COLORS.primaryLighter : COLORS.transparent,
-});
-
 const TabsNavigator = () => {
-    const dispatch = useDispatch();
+    const user = useSelector(selectUser);
     const opened = useSelector((state: { tab: { opened: boolean } }) => state.tab.opened);
     
+    const isAdminOrCoordinator = 
+        user?.role === 'admin' || 
+        user?.role === 'field_strategy_coordinator';
+
     return (
         <Tab.Navigator
             initialRouteName="Home"
             screenOptions={{
-                sceneStyle:{backgroundColor: 'transparent'},
                 headerShown: false,
                 tabBarShowLabel: false,
+                tabBarStyle: styles.tabBar,
             }}
         >
+            {/* Home Tab */}
             <Tab.Screen
                 name="Home"
                 component={HomeScreen}
@@ -44,28 +47,28 @@ const TabsNavigator = () => {
                         </View>
                     ),
                 }}
-                listeners={{
-                    tabPress: e => opened && e.preventDefault(),
-                }}
+                listeners={{ tabPress: e => opened && e.preventDefault() }}
             />
+
+            {/* Training/Users Tab */}
             <Tab.Screen
                 name="training"
-                component={AllCoursesScreen}
+                component={isAdminOrCoordinator ? UsersListPage : AllCoursesScreen}
                 options={{
                     tabBarIcon: ({ focused }) => (
                         <View style={styles.tabIconContainer}>
                             <Ionicons
-                                name="school-outline"
+                                name={isAdminOrCoordinator ? "people" : "school-outline"}
                                 size={24}
                                 color={focused ? COLORS.primary : COLORS.primaryLight}
                             />
                         </View>
                     ),
                 }}
-                listeners={{
-                    tabPress: e => opened && e.preventDefault(),
-                }}
+                listeners={{ tabPress: e => opened && e.preventDefault() }}
             />
+
+            {/* Resources Tab */}
             <Tab.Screen
                 name="Resources"
                 component={ResourcesScreen}
@@ -80,10 +83,10 @@ const TabsNavigator = () => {
                         </View>
                     ),
                 }}
-                listeners={{
-                    tabPress: e => opened && e.preventDefault(),
-                }}
+                listeners={{ tabPress: e => opened && e.preventDefault() }}
             />
+
+            {/* Community Tab */}
             <Tab.Screen
                 name="CommunityScreen"
                 component={CommunityScreen}
@@ -98,10 +101,10 @@ const TabsNavigator = () => {
                         </View>
                     ),
                 }}
-                listeners={{
-                    tabPress: e => opened && e.preventDefault(),
-                }}
+                listeners={{ tabPress: e => opened && e.preventDefault() }}
             />
+
+            {/* Profile Tab */}
             <Tab.Screen
                 name="Profile"
                 component={ProfileScreen}
@@ -116,9 +119,7 @@ const TabsNavigator = () => {
                         </View>
                     ),
                 }}
-                listeners={{
-                    tabPress: e => opened && e.preventDefault(),
-                }}
+                listeners={{ tabPress: e => opened && e.preventDefault() }}
             />
         </Tab.Navigator>
     );

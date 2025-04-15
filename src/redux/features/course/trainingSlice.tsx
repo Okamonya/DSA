@@ -9,11 +9,14 @@ import {
     enrollInTrainingModule,
     setCurrentTraining,
     getCurrentTrainingForUser,
+    fetchUserTrainings,
+    completeTraining,
 } from "./trainingActions";
 
 const initialState: TrainingState = {
     trainingModules: [],
     trainingModule: null,
+    userTrainings: [],
     currentTraining: undefined,
     success: false,
     loading: false,
@@ -36,6 +39,20 @@ const trainingSlice = createSlice({
                 state.trainingModules = action.payload;
             })
             .addCase(fetchTrainingModules.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload?.message || "Error fetching training modules.";
+            })
+
+            // Fetch all training modules
+            .addCase(fetchUserTrainings.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchUserTrainings.fulfilled, (state, action) => {
+                state.loading = false;
+                state.userTrainings = action.payload;
+            })
+            .addCase(fetchUserTrainings.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload?.message || "Error fetching training modules.";
             })
@@ -90,6 +107,21 @@ const trainingSlice = createSlice({
                     state.trainingModules[index] = action.payload;
                 }
             })
+
+            
+        // complete training
+        .addCase(completeTraining.pending, (state) => {
+            state.loading = true;
+            state.error = null;
+        })
+        .addCase(completeTraining.fulfilled, (state) => {
+            state.loading = false;
+        })
+        .addCase(completeTraining.rejected, (state, action) => {
+            state.loading = false;
+            state.error = action.payload?.message || "Failed to set current training.";
+        })
+
             // Delete a training module
             .addCase(deleteTrainingModule.fulfilled, (state, action) => {
                 state.trainingModules = state.trainingModules.filter((t) => t.id !== action.meta.arg.id);

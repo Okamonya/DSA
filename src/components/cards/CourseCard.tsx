@@ -1,12 +1,12 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { TrainingModule } from "../../redux/features/course/trainingTypes";
+import { TrainingModule, UserTraining } from "../../redux/features/course/trainingTypes";
 import { useNavigation } from "@react-navigation/native";
 import { AppNavigationProp } from "../navTypes";
 
 interface CourseCardProps {
-    course: TrainingModule;
+    course: UserTraining;
 }
 
 const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
@@ -14,19 +14,19 @@ const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
     return (
         <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('SingleCourse', { id: course.id } as never)}
+            onPress={() => navigation.navigate('SingleCourse', { id: course.trainingModule?.id } as never)}
         >
             <Image
                 style={styles.image}
-                source={{ uri: course.posterUrl || "https://via.placeholder.com/150" }}
+                source={{ uri: course.trainingModule?.posterUrl || "https://via.placeholder.com/150" }}
             />
             <View style={styles.details}>
                 <Text
                     style={styles.title}
                     numberOfLines={1}
-                >{course.title}</Text>
+                >{course.trainingModule?.title}</Text>
                 <Text style={styles.category} numberOfLines={5}>
-                    {course.description}
+                    {course.trainingModule?.description}
                 </Text>
                 <Text style={styles.students}>{course.studentsEnrolled} Students</Text>
 

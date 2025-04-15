@@ -29,11 +29,11 @@ export const fetchAnnouncementById = createAsyncThunk<Announcement, { id: string
 );
 
 // Create Announcement
-export const createAnnouncement = createAsyncThunk<Announcement, Omit<Announcement, "id" | "createdAt" | "updatedAt">, { rejectValue: CapturedMessages }>(
+export const createAnnouncement = createAsyncThunk<Announcement, {data: Omit<Announcement, "id" | "createdAt" | "updatedAt">; id: string }, { rejectValue: CapturedMessages }>(
     "announcements/create",
-    async (data, { rejectWithValue }) => {
+    async ({data, id}, { rejectWithValue }) => {
         try {
-            return await announcementAPI.createAnnouncement(data);
+            return await announcementAPI.createAnnouncement(data, id);
         } catch (error: any) {
             if (!error.response) throw error;
             return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });

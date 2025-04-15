@@ -49,7 +49,7 @@ const announcementSlice = createSlice({
         });
         builder.addCase(createAnnouncement.fulfilled, (state, action) => {
             state.loading = false;
-            state.announcements.push(action.payload);
+            state.announcement = action.payload;
         });
         builder.addCase(createAnnouncement.rejected, (state, action) => {
             state.loading = false;

@@ -10,8 +10,8 @@ export const announcementAPI = {
         const response = await api.get(`/api/announcements/single/${id}`);
         return response.data;
     },
-    createAnnouncement: async (data: Omit<Announcement, "id" | "createdAt" | "updatedAt">): Promise<Announcement> => {
-        const response = await api.post("/api/announcements", data);
+    createAnnouncement: async (data: Omit<Announcement, "id" | "createdAt" | "updatedAt">, id: string): Promise<Announcement> => {
+        const response = await api.post(`/api/announcements/${id}`, data);
         return response.data;
     },
     updateAnnouncement: async (id: string, data: Partial<Announcement>): Promise<Announcement> => {

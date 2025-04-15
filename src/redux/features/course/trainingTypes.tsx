@@ -19,6 +19,16 @@ export interface TrainingModule {
     posterUrl?: string;
 }
 
+export interface UserTraining {
+    id: string;
+    trainingModuleId: string;
+    status: string;
+    current: boolean;
+    progress: number;
+    enrolledAt: Date;
+    trainingModule: TrainingModule
+}
+
 export interface EnrollInTrainingModule {
     userId?: string;
     trainingModuleId?: string;
@@ -33,6 +43,7 @@ export interface TrainingState {
     trainingModules: TrainingModule[];
     trainingModule: TrainingModule | null;
     currentTraining?: TrainingModule;
+    userTrainings: UserTraining[];
     success: boolean;
     loading: boolean;
     error: string | null;

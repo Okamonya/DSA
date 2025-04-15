@@ -1,24 +1,30 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, Pressable } from "react-native";
-import { Course } from "../../redux/features/sessions/sessionTypes";
 import CourseCard from "../../components/cards/CourseCard";
 import SearchBar from "../../components/search/SearchBar";
+import { useDispatch, useSelector } from "react-redux";
+import { selectUserTrainings } from "../../redux/features/course/trainingSelectors";
+import { selectUser } from "../../redux/features/auth/authSelectors";
+import { AppDispatch } from "../../redux/features/store";
+import { fetchUserTrainings } from "../../redux/features/course/trainingActions";
 
-const myCourses: Course[] = [
-    { id: "1", title: "Leadership Development Essentials", category: "Leadership Training", price: 120, discountPrice: 100, rating: 4.8, studentsEnrolled: 523, status: "ongoing", progress: 65 },
-    { id: "2", title: "Church Administration Mastery", category: "Church Management", price: 150, discountPrice: 125, rating: 4.7, studentsEnrolled: 318, status: "completed" },
-    { id: "3", title: "Effective Preaching Techniques", category: "Homiletics", price: 200, discountPrice: 180, rating: 4.9, studentsEnrolled: 442, status: "ongoing", progress: 85 },
-    { id: "4", title: "Conflict Resolution in Ministry", category: "Interpersonal Skills", price: 100, discountPrice: 85, rating: 4.6, studentsEnrolled: 276, status: "enrolled" },
-    { id: "5", title: "Strategic Vision Casting", category: "Leadership Training", price: 130, discountPrice: 110, rating: 4.5, studentsEnrolled: 190, status: "completed" },
-    { id: "6", title: "Building Strong Ministry Teams", category: "Team Development", price: 120, discountPrice: 100, rating: 4.7, studentsEnrolled: 360, status: "ongoing", progress: 40 },
-];
 
 
 const UserCoursesScreen: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<"ongoing" | "completed" | "enrolled">("ongoing");
+    const [activeTab, setActiveTab] = useState<"In Progress" | "Completed" | "Enrolled">("Enrolled");
+    const myCourses = useSelector(selectUserTrainings);
+    const user = useSelector(selectUser);
+
+    const dispatch = useDispatch<AppDispatch>();
 
     const filteredCourses = myCourses.filter((course) => course.status === activeTab);
 
+    useEffect(() => {
+        if (user) {
+            dispatch(fetchUserTrainings({ userId: user.id }));
+        }
+    }, [dispatch, user])
+    console.log(filteredCourses)
     return (
         <View style={styles.container}>
             <SearchBar
@@ -26,11 +32,11 @@ const UserCoursesScreen: React.FC = () => {
                 onFilterPress={() => console.log("Filter my courses")}
             />
             <View style={styles.tabContainer}>
-                {["ongoing", "completed", "enrolled"].map((tab) => (
+                {["Enrolled", "In Progress", "Completed"].map((tab) => (
                     <Pressable
                         key={tab}
                         style={[styles.tab, activeTab === tab && styles.activeTab]}
-                        onPress={() => setActiveTab(tab as "ongoing" | "completed" | "enrolled")}
+                        onPress={() => setActiveTab(tab as "Enrolled" | "In Progress" | "Completed")}
                     >
                         <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}

@@ -8,6 +8,8 @@ import { formatDate, formatTimeRange } from '../../util/dateTimeFormat';
 import { selectUser } from '../../redux/features/auth/authSelectors';
 import { AppDispatch } from '../../redux/features/store';
 import { fetchAllSessions, fetchAllSessionsById } from '../../redux/features/sessions/sessionActions';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS } from '../../util/colors';
 
 const AllSessionsScreen: React.FC = () => {
     const navigation = useNavigation<AppNavigationProp>();
@@ -48,7 +50,7 @@ const AllSessionsScreen: React.FC = () => {
                             <Text style={styles.sessionTitle}>{session.title}</Text>
                             <Text style={styles.sessionDescription}>{session.description}</Text>
                             <Text style={styles.sessionDateTime}>
-                                {formatDate(session.date)} | {formatTimeRange(session.startTime, session.endTime)}
+                                {formatDate(session.date)} | {session.startTime}, {session.endTime}
                             </Text>
                         </View>
                     </TouchableOpacity>
@@ -61,6 +63,9 @@ const AllSessionsScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
+
+            <StatusBar style="light" backgroundColor={COLORS.primary} />
+
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Sessions</Text>
@@ -113,7 +118,7 @@ const AllSessionsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f6fa' },
+    container: { flex: 1, backgroundColor: '#f5f6fa', marginTop: 10 },
     header: { padding: 16, backgroundColor: '#4B5574' },
     headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', textAlign: 'center' },
     tabContainer: {

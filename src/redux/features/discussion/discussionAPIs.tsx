@@ -18,8 +18,8 @@ export const discussionApis = {
         return response.data;
     },
 
-    createReply: async (discussionId: string, content: string): Promise<Reply> => {
-        const response = await api.post(`/api/discussions/${discussionId}/replies`, { content });
+    createReply: async (discussionId: string, userId: string, content: string): Promise<Reply> => {
+        const response = await api.post(`/api/discussions/${discussionId}/${userId}/replies`, { content });
         return response.data;
     }
 }

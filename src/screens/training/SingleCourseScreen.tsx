@@ -8,21 +8,27 @@ import {
   ListRenderItem,
   Image,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { AppDispatch } from '../../redux/features/store';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  completeTraining,
   enrollInTrainingModule,
   fetchSingleTrainingModule,
   setCurrentTraining,
+  updateTrainingModule,
 } from '../../redux/features/course/trainingActions';
-import { selectSingleTrainingModule } from '../../redux/features/course/trainingSelectors';
+import { selectSingleTrainingModule, selectTrainingLoading } from '../../redux/features/course/trainingSelectors';
 import { EnrollInTrainingModule } from '../../redux/features/course/trainingTypes';
 import { selectUser } from '../../redux/features/auth/authSelectors';
 import { ResizeMode, Video } from 'expo-av';
 import { WebView } from 'react-native-webview';
+import LoadingOverlay from '../../components/loader/LoaderOverlay';
+import PDFViewer from './PDF';
+import VideoPlayer from './Video';
 
 interface Section {
   id: string;
@@ -42,9 +48,13 @@ const SingleCourseScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const training = useSelector(selectSingleTrainingModule);
   const user = useSelector(selectUser);
+  const loading = useSelector(selectTrainingLoading);
+
+  const userId = user?.id || '';
 
   useEffect(() => {
-    dispatch(fetchSingleTrainingModule({ id }));
+    if (user)
+      dispatch(fetchSingleTrainingModule({ id, userId }));
   }, [id, dispatch]);
 
   const sections: Section[] = [
@@ -88,10 +98,31 @@ const SingleCourseScreen: React.FC = () => {
   const hanldeEnrollInTraining = async (enrollData: EnrollInTrainingModule) => {
     dispatch(enrollInTrainingModule(enrollData)).then((response) => {
       if (enrollInTrainingModule.fulfilled.match(response)) {
-        dispatch(fetchSingleTrainingModule({ id }));
+        dispatch(fetchSingleTrainingModule({ id, userId }));
       }
     });
   };
+
+  const handleCompleteCourse = async ({ userId, trainingId }: { userId: string; trainingId: string }) => {
+    try {
+      // Dispatch the complete training action
+      const response = await dispatch(completeTraining({ userId, trainingId }));
+
+
+      // Check if the action was successful
+      if (completeTraining.fulfilled.match(response)) {
+        console.log("Course marked as complete successfully");
+
+        // Fetch the updated training module data
+        dispatch(fetchSingleTrainingModule({ id: trainingId, userId }));
+      } else {
+        console.error("Failed to mark the course as complete", response.error);
+      }
+    } catch (error) {
+      console.error("An error occurred while completing the course:", error);
+    }
+  };
+
 
   const handleAccessContent = async () => {
     if (!training?.contentUrl) {
@@ -103,12 +134,12 @@ const SingleCourseScreen: React.FC = () => {
       setContentUri(training.contentUrl);
       setShowVideo(true);
       if (user)
-      await dispatch(setCurrentTraining({ userId: user?.id, trainingId: training.id }));
+        await dispatch(setCurrentTraining({ userId: user?.id, trainingId: training.id }));
     } else if (training.contentUrl.endsWith('.pdf')) {
       setContentUri(training.contentUrl);
       setShowPdf(true);
       if (user)
-      await dispatch(setCurrentTraining({ userId: user?.id, trainingId: training.id }));
+        await dispatch(setCurrentTraining({ userId: user?.id, trainingId: training.id }));
     } else {
       Alert.alert(
         'Unsupported Content',
@@ -117,8 +148,10 @@ const SingleCourseScreen: React.FC = () => {
     }
   };
 
+
   return (
     <View style={styles.container}>
+      {/* <LoadingOverlay visible={loading} /> */}
       {/* Course Image */}
       <View style={styles.imageContainer}>
         <Image
@@ -132,13 +165,25 @@ const SingleCourseScreen: React.FC = () => {
 
       {/* Course Header */}
       <View style={styles.header}>
+
+        <TouchableOpacity
+          onPress={handleAccessContent}
+          style={styles.playButton}
+        >
+          <Ionicons
+            name="play-circle"
+            size={54}
+            color={training?.contentUrl ? '#1E90FF' : '#ccc'}
+          />
+        </TouchableOpacity>
+
         <Text style={styles.category}>District Superintendent's Academy</Text>
         <Text style={styles.title}>{training?.title}</Text>
-        <View style={styles.stats}>
+        {/* <View style={styles.stats}>
           <Text style={styles.statsText}>4 Modules</Text>
           <Text style={styles.statsSeparator}>|</Text>
           <Text style={styles.statsText}>90 Minutes</Text>
-        </View>
+        </View> */}
       </View>
 
       {/* Tabs */}
@@ -153,7 +198,7 @@ const SingleCourseScreen: React.FC = () => {
             About
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActiveTab('curriculum')}>
+        {/* <TouchableOpacity onPress={() => setActiveTab('curriculum')}>
           <Text
             style={[
               styles.tab,
@@ -162,14 +207,16 @@ const SingleCourseScreen: React.FC = () => {
           >
             Curriculum
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       {/* Tab Content */}
       <View style={styles.tabContent}>
         {activeTab === 'about' ? (
           <View style={styles.aboutContainer}>
-            <Text style={styles.aboutText}>{training?.description}</Text>
+            <ScrollView nestedScrollEnabled={true}>
+              <Text style={styles.aboutText}>{training?.description}</Text>
+            </ScrollView>
           </View>
         ) : (
           <View style={styles.curriculum}>
@@ -190,60 +237,38 @@ const SingleCourseScreen: React.FC = () => {
       {/* Enroll Button */}
       <TouchableOpacity
         style={styles.enrollButton}
-        onPress={() =>
-          hanldeEnrollInTraining({ userId: user?.id, trainingModuleId: training?.id })
-        }
+        onPress={() => {
+          if (training?.status === "In Progress" || training?.status === "Enrolled") {
+            handleCompleteCourse({ userId: user?.id, trainingId: training?.id });
+          } else {
+            hanldeEnrollInTraining({ userId: user?.id, trainingModuleId: training?.id })
+          }
+        }}
       >
-        <Text style={styles.enrollText}>Enroll Course</Text>
-        <Ionicons name="arrow-forward" size={20} color="#fff" />
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={handleAccessContent}>
+        <Text style={styles.enrollText}>
+          {training?.status === "In Progress" || training?.status === "Enrolled"
+            ? "Complete Course"
+            : "Enroll Course"}
+        </Text>
         <Ionicons
-          name="play-circle"
-          size={24}
-          color={training?.contentUrl ? '#1E90FF' : '#ccc'}
+          name="arrow-forward"
+          size={20}
+          color="#fff"
         />
       </TouchableOpacity>
 
       {/* Video Modal */}
       {showVideo && (
-        <View style={styles.videoContainer}>
-          <Video
-            source={{ uri: videoUri! }}
-            rate={1.0}
-            volume={1.0}
-            isMuted={false}
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
-            useNativeControls
-            style={styles.video}
-          />
-          <TouchableOpacity
-            onPress={() => setShowVideo(false)}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
+
+        <View style={styles.webViewContainer}>
+          <VideoPlayer source={contentUri || ''} closeVideo={() => setShowVideo(false)} />
         </View>
       )}
 
       {/* PDF Viewer */}
       {showPdf && contentUri && (
         <View style={styles.webViewContainer}>
-          <WebView
-            source={{ uri: `https://docs.google.com/gview?embedded=true&url=${contentUri}` }}
-            style={styles.webView}
-            javaScriptEnabled
-            domStorageEnabled
-            onError={() => Alert.alert('Error', 'Failed to load PDF')}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPdf(false)}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
+          <PDFViewer sourceUrl={contentUri} closePdf={() => setShowPdf(false)} />
         </View>
       )}
     </View>
@@ -276,6 +301,11 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
+  },
+  playButton: {
+    position: 'absolute',
+    top: -14,
+    right: 10
   },
   category: {
     fontSize: 14,
@@ -332,6 +362,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 6,
+
   },
   aboutText: {
     fontSize: 12,

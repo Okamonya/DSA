@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -9,14 +9,17 @@ import {
     Pressable,
     KeyboardAvoidingView,
     Platform,
+    RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import socket from "../../util/socket";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../../redux/features/store";
-import { createReply } from "../../redux/features/discussion/discussionActions";
+import { createReply, fetchDiscussions } from "../../redux/features/discussion/discussionActions";
 import { User } from "../../redux/features/auth/authTypes";
 import { Reply } from "../../redux/features/discussion/discussionTypes";
+import { selectUser } from "../../redux/features/auth/authSelectors";
+import moment from "moment";
 
 type Discussion = {
     id: string;
@@ -34,6 +37,15 @@ const DiscussionDetails: React.FC<{ discussion: Discussion; onClose: () => void 
     const [newReply, setNewReply] = useState<string>("");
     const [replies, setReplies] = useState<Reply[]>(discussion.replies || []);
     const dispatch = useDispatch<AppDispatch>();
+    const user = useSelector(selectUser);
+    const [refreshing, setRefreshing] = useState(false);
+
+
+    // Handle pull-to-refresh
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        dispatch(fetchDiscussions()).then(() => setRefreshing(false));
+    }, [dispatch]);
 
     useEffect(() => {
         // Listen for new replies in real-time
@@ -56,15 +68,23 @@ const DiscussionDetails: React.FC<{ discussion: Discussion; onClose: () => void 
         }
 
         try {
+
             const resultAction = await dispatch(
                 createReply({
                     discussionId: discussion.id,
+                    userId: user?.id || "",
                     content: newReply,
                 })
             );
 
             if (createReply.fulfilled.match(resultAction)) {
-                const createdReply = resultAction.payload.reply;
+                const createdReply = {
+                    ...resultAction.payload.reply,
+                    user: {
+                        id: user?.id || "",
+                        username: user?.username || "Unknown User",
+                    },
+                };
 
                 // Update local state for real-time reflection
                 setReplies((prevReplies) => [...prevReplies, createdReply]);
@@ -117,19 +137,35 @@ const DiscussionDetails: React.FC<{ discussion: Discussion; onClose: () => void 
             <FlatList
                 data={replies}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <View style={styles.comment}>
-                        <Image
-                            source={{ uri: "https://via.placeholder.com/40" }}
-                            style={styles.commentImage}
-                        />
-                        <View style={styles.commentDetails}>
-                            <Text style={styles.commentUser}>{item.user?.username}</Text>
-                            <Text style={styles.commentContent}>{item.content}</Text>
-                            <Text style={styles.commentTime}>2h ago</Text>
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+                renderItem={({ item }) => {
+                    // Extract only the first two names
+                    const fullName = item.user?.username || "Unknown User";
+                    const fullNameParts = fullName.split(" ");
+                    const avatarName = fullNameParts.slice(0, 2).join("+");
+console.log(avatarName)
+                    return (
+                        <View style={styles.comment}>
+                            <Image
+                                source={{
+                                    uri: `https://ui-avatars.com/api/?name=${avatarName}`,
+                                }}
+                                style={styles.commentImage}
+                            />
+                            <View style={styles.commentDetails}>
+                                <Text style={styles.commentUser}>
+                                    {item.user?.username || "Unknown User"}
+                                </Text>
+                                <Text style={styles.commentContent}>{item.content}</Text>
+                                <Text style={styles.commentTime}>
+                                    {moment(item.createdAt).fromNow()}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                )}
+                    );
+                }}
                 showsVerticalScrollIndicator={false}
                 style={styles.commentsList}
             />
@@ -178,7 +214,7 @@ const styles = StyleSheet.create({
     postImage: {
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: 6,
         marginRight: 12,
     },
     postDetails: {

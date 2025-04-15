@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Button } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../../redux/features/store";
 import { fetchAnnouncements } from "../../redux/features/announcement/announceActions";
@@ -7,21 +7,31 @@ import { selectUser } from "../../redux/features/auth/authSelectors";
 import { selectAnnouncementError, selectAnnouncementLoading, selectAnnouncements } from "../../redux/features/announcement/announceSelector";
 import { useNavigation } from "@react-navigation/native";
 import { AppNavigationProp } from "../navTypes";
+import LoadingOverlay from "../loader/LoaderOverlay";
+import { StatusBar } from "expo-status-bar";
+import { COLORS } from "../../util/colors";
 
 const AllAnnouncementsScreen: React.FC = () => {
-    const user = useSelector(selectUser)
+    const user = useSelector(selectUser);
     const dispatch = useDispatch<AppDispatch>();
     const announcements = useSelector(selectAnnouncements);
     const loading = useSelector(selectAnnouncementLoading);
-    const error  = useSelector(selectAnnouncementError);
+    const error = useSelector(selectAnnouncementError);
     const navigation = useNavigation<AppNavigationProp>();
 
     useEffect(() => {
         if (user) {
-            const id = user.id
+            const id = user.id;
             dispatch(fetchAnnouncements({ id }));
         }
-    }, [dispatch]);
+    }, [dispatch, user]);
+
+    const retryFetch = () => {
+        if (user) {
+            const id = user.id;
+            dispatch(fetchAnnouncements({ id }));
+        }
+    };
 
     const renderItem = ({ item }: { item: { id: string; title: string; createdAt: string } }) => (
         <TouchableOpacity
@@ -31,50 +41,100 @@ const AllAnnouncementsScreen: React.FC = () => {
             <Text style={styles.cardTitle}>
                 {item.title.length > 40 ? `${item.title.substring(0, 40)}...` : item.title}
             </Text>
-            <Text style={styles.cardDate}>{item.createdAt}</Text>
+            <Text style={styles.cardDate}>
+                {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
         </TouchableOpacity>
     );
-
-    if (loading) {
-        return <ActivityIndicator style={styles.loader} size="large" color="#4b5574" />;
-    }
 
     if (error) {
         return (
             <View style={styles.center}>
                 <Text style={styles.error}>{error}</Text>
+                <Button title="Retry" onPress={retryFetch} color="#4b5574" />
             </View>
         );
     }
 
     return (
-        <FlatList
-            data={announcements}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-        />
+        <View style={styles.container}>
+            
+            <StatusBar style="light" backgroundColor={COLORS.primary} />
+
+            <View style={styles.header}>
+                <Text style={styles.headerText}>Announcements</Text>
+            </View>
+            {/* <LoadingOverlay visible={loading} /> */}
+            <FlatList
+                data={announcements}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                contentContainerStyle={styles.list}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                    <View style={styles.center}>
+                        <Text style={styles.emptyText}>No announcements available.</Text>
+                    </View>
+                }
+            />
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    list: { paddingVertical: 8, paddingHorizontal: 16, gap: 10, marginTop: 20},
+    container: {
+        flex: 1,
+        backgroundColor: "#f9f9f9",
+        marginTop: 24
+    },
+    header: {
+        backgroundColor: "#4b5574",
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    headerText: {
+        fontSize: 24,
+        fontWeight: "bold",
+        color: "#fff",
+    },
+    list: {
+    },
     card: {
         backgroundColor: "#fff",
-        borderRadius: 8,
         padding: 16,
-        marginBottom: 8,
         shadowColor: "#000",
         shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowRadius: 6,
+        elevation: 4,
     },
-    cardTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 8 },
-    cardDate: { fontSize: 14, color: "#888" },
-    loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-    center: { flex: 1, justifyContent: "center", alignItems: "center" },
-    error: { fontSize: 16, color: "red" },
+    cardTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#333",
+        marginBottom: 8,
+    },
+    cardDate: {
+        fontSize: 14,
+        color: "#777",
+    },
+    center: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    error: {
+        fontSize: 16,
+        color: "red",
+        marginBottom: 16,
+        textAlign: "center",
+    },
+    emptyText: {
+        fontSize: 16,
+        color: "#666",
+        textAlign: "center",
+    },
 });
 
 export default AllAnnouncementsScreen;

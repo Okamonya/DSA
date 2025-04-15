@@ -9,6 +9,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { assignUserToSession } from '../../redux/features/sessions/sessionActions';
 import { AppDispatch } from '../../redux/features/store';
 import { selectUser } from '../../redux/features/auth/authSelectors';
+import LoadingOverlay from '../../components/loader/LoaderOverlay';
+import { selectSessionLoading } from '../../redux/features/sessions/sessionSelectors';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS } from '../../util/colors';
 
 const SingleSessionScreen: React.FC = () => {
     const route = useRoute();
@@ -16,6 +20,7 @@ const SingleSessionScreen: React.FC = () => {
     const dispatch = useDispatch<AppDispatch>();
     const user = useSelector(selectUser);
     const { session } = route.params as { session: any };
+    const loading = useSelector(selectSessionLoading);
 
     const handleLinkPress = (link: string) => {
         if (link.includes('meet.google.com')) {
@@ -47,6 +52,9 @@ const SingleSessionScreen: React.FC = () => {
     return (
         <ScrollView style={styles.container}>
 
+            <StatusBar style="light" backgroundColor={COLORS.primary} />
+
+            {/* <LoadingOverlay visible={loading} /> */}
             {/* Header Section */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -66,7 +74,7 @@ const SingleSessionScreen: React.FC = () => {
                 <Text style={styles.sessionTitle}>{session.title}</Text>
                 <Text style={styles.sessionDescription}>{session.description}</Text>
                 <Text style={styles.sessionDateTime}>
-                    {formatDate(session.date)} | {formatTimeRange(session.startTime, session.endTime)}
+                    {formatDate(session.date)} | {session.startTime}, {session.endTime}
                 </Text>
             </View>
 
@@ -90,7 +98,7 @@ const SingleSessionScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f6fa', padding: 12 },
+    container: { flex: 1, backgroundColor: '#f5f6fa', padding: 12, marginTop: 10 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -147,6 +155,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         alignItems: 'center',
         marginTop: 20,
+        marginBlock: 20
     },
     signInButtonText: {
         color: '#fff',

@@ -1,8 +1,7 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Animated } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import SearchBar from '../../components/search/SearchBar';
 import Announcements from '../../components/community/Announcements';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectUser } from '../../redux/features/auth/authSelectors';
@@ -10,37 +9,101 @@ import { AppDispatch } from '../../redux/features/store';
 import { fetchAnnouncements } from '../../redux/features/announcement/announceActions';
 import { selectAnnouncements } from '../../redux/features/announcement/announceSelector';
 import { fetchAllSessions, fetchAllSessionsById } from '../../redux/features/sessions/sessionActions';
-import { selectSessionsById } from '../../redux/features/sessions/sessionSelectors';
+import { selectSessionLoading, selectSessionsById } from '../../redux/features/sessions/sessionSelectors';
 import { fetchTrainingModules, getCurrentTrainingForUser } from '../../redux/features/course/trainingActions';
-import { selectCurrentTraining, selectTrainingModules } from '../../redux/features/course/trainingSelectors';
+import { selectCurrentTraining, selectTrainingLoading, selectTrainingModules } from '../../redux/features/course/trainingSelectors';
 import { AppNavigationProp } from '../../components/navTypes';
 import { Session } from '../../redux/features/sessions/sessionTypes';
-import { formatDate, formatTimeRange } from '../../util/dateTimeFormat';
-import { current } from '@reduxjs/toolkit';
+import { formatDate } from '../../util/dateTimeFormat';
+import AddButton from '../../components/addButton/AddButton';
+import CalendarOfEvents from '../../components/event/CalenderOfEvents';
+import { fetchEvents } from '../../redux/features/event/eventActions';
+import { selectEventLoading, selectEvents } from '../../redux/features/event/eventSelector';
+import LoadingOverlay from '../../components/loader/LoaderOverlay';
+import { StatusBar } from 'expo-status-bar';
+import { COLORS } from '../../util/colors';
+import { fetchUser } from '../../redux/features/auth/authActions';
 
+type UserRole = "admin" | "district_superintendent" | "field_strategy_coordinator";
+
+interface User {
+    username: string;
+    role: UserRole; // Role is required
+}
 
 const HomeScreen: React.FC = () => {
     const navigation = useNavigation<AppNavigationProp>();
     const user = useSelector(selectUser);
     const announcements = useSelector(selectAnnouncements);
-    const assignedSessions = useSelector(selectSessionsById);
-    const trainings = useSelector(selectTrainingModules);
+    const assignedSessions = useSelector(selectSessionsById).slice(0, 2);
+    const trainings = useSelector(selectTrainingModules).slice(0, 6);
     const currentTraining = useSelector(selectCurrentTraining);
+    const events = useSelector(selectEvents);
+    console.log('events', events)
+    const eventLoading = useSelector(selectEventLoading);
+    const trainingLoading = useSelector(selectTrainingLoading);
+    const sessionLoading = useSelector(selectSessionLoading);
+    const loading = eventLoading || trainingLoading || sessionLoading;
+
     const dispatch = useDispatch<AppDispatch>();
 
     const [searchQuery, setSearchQuery] = useState("");
+
+    const [isAddButtonOpen, setIsAddButtonOpen] = useState(false);
+    const [isButtonVisible, setIsButtonVisible] = useState(true);
+    const scrollY = new Animated.Value(0);
+
+    // Determine if the user is allowed to see the Add button
+    const canViewAddButton = user?.role === 'admin' || user?.role === 'field_strategy_coordinator';
+
+    const getGreetingMessage = (user: User): string => {
+        if (!user || !user.role) {
+            return "Welcome, User"; // Default message for unknown roles or users
+        }
+
+        // Map roles to greetings
+        const roleGreetings: Record<UserRole, string> = {
+            admin: "Welcome, Admin",
+            district_superintendent: "Welcome, Superintendent",
+            field_strategy_coordinator: "Welcome, Field Coordinator",
+        };
+
+        return roleGreetings[user.role] || "Welcome, User";
+    };
+
+    useEffect(() => {
+        // Set a timeout to hide the button after 5 seconds
+        const timeout = setTimeout(() => {
+            setIsButtonVisible(false);
+        }, 5000);
+
+        return () => clearTimeout(timeout);
+    }, []);
+
+    const handleScroll = Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        {
+            listener: (event: any) => {
+                const currentOffset = event.nativeEvent.contentOffset.y;
+                setIsButtonVisible(currentOffset <= 0); // Show the button at the top
+            },
+            useNativeDriver: false,
+        }
+    );
 
     useFocusEffect(
         useCallback(() => {
             if (user) {
                 const id = user.id
-                dispatch(fetchAnnouncements({ id }))
-                dispatch(fetchAllSessionsById({ id }))
-                dispatch(fetchAllSessions({ id }))
-                dispatch(fetchTrainingModules())
+                dispatch(fetchAnnouncements({ id }));
+                dispatch(fetchAllSessionsById({ id }));
+                dispatch(fetchAllSessions({ id }));
+                dispatch(fetchTrainingModules({ userId: id }))
+                dispatch(fetchEvents(id));
                 dispatch(getCurrentTrainingForUser({ userId: id })).then((response) => {
                     console.log(response)
                 });
+                dispatch(fetchUser({ id }))
             }
         }, [])
     )
@@ -49,6 +112,11 @@ const HomeScreen: React.FC = () => {
     for (let i = 0; i < trainings.length; i += 2) {
         groupedTrainings.push(trainings.slice(i, i + 2));
     }
+
+
+    const toggleAddButton = () => {
+        setIsAddButtonOpen((prev) => !prev);
+    };
 
     const handleFilterPress = () => {
         console.log("Filter button pressed!");
@@ -63,147 +131,180 @@ const HomeScreen: React.FC = () => {
     };
 
     return (
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-            {/* Header Section */}
-            <View style={styles.header}>
-                <Text style={styles.greeting}>Welcome, Superintendent {user?.username}{"\n"}{"\n"}
-                    <Text style={styles.subGreeting}>What do you want to focus on today?{"\n"}Search below for resources.</Text></Text>
-                <TouchableOpacity style={styles.notificationIcon}>
-                    <Ionicons name="notifications-outline" size={32} />
-                </TouchableOpacity>
-            </View>
-
-            {/* Search Bar */}
-            <SearchBar
-                placeholder="Search for resources, trainings, or policies..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onFilterPress={handleFilterPress}
-                filterIconColor="filter-sharp"
-            />
-
-            {/* Announcements Section */}
-            <Text style={styles.sectionTitle}>Announcements</Text>
-            <Announcements data={announcements} onViewAll={handleViewAll} />
-
-            {/* Assigned Sessions Section */}
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Assigned Sessions</Text>
-                <TouchableOpacity
-                    style={styles.viewAllSessionsButton}
-                    onPress={() => navigation.navigate('AllSessions' as never)}
-                >
-                    <Text style={styles.viewAllSessionsText}>VIEW ALL</Text>
-                </TouchableOpacity>
-            </View>
-            {assignedSessions.length > 0 ? (
-                assignedSessions.map((session) => (
-                    <TouchableOpacity
-                        key={session.id}
-                        style={styles.sessionCard}
-                        onPress={() => handleViewSessionDetails(session)}
-                    >
-                        <View style={styles.sessionContent}>
-                            <Text style={styles.sessionTitle}>{session.title}</Text>
-                            <Text style={styles.sessionDescription}>{session.description}</Text>
-                            <Text style={styles.sessionDateTime}>
-                                {formatDate(session.date)} | {formatTimeRange(session.startTime, session.endTime)}
-                            </Text>
-                        </View>
-                    </TouchableOpacity>
-                ))
-            ) : (
-                <Text style={styles.noSessions}>No assigned sessions available.</Text>
+        <View style={{ flex: 1 }}>
+            {/* Animated Add Button */}
+            {canViewAddButton && isButtonVisible && (
+                <AddButton opened={isAddButtonOpen} toggleOpened={toggleAddButton} />
             )}
 
+            <StatusBar style="light" backgroundColor={COLORS.primary} />
 
-
-            {/* Current Course Progress */}
-            <View style={styles.currentCoursesHeader}>
-                <Text style={styles.sectionTitle}>Your Current Training</Text>
-                <TouchableOpacity
-                    onPress={() => { navigation.navigate('UserCourses' as never) }}
-                >
-                    <Text style={styles.seeAll}>VIEW ALL</Text>
-                </TouchableOpacity>
-            </View>
-            {currentTraining ? (
-                <View style={styles.courseProgressContainer}>
-                    <View style={styles.courseInfo}>
-                        <TouchableOpacity style={styles.bookIcon}>
-                            <Ionicons name="book-outline" size={44} color="black" />
-                        </TouchableOpacity>
-                        <View style={styles.courseDetails}>
-                            <Text style={styles.courseName}>{currentTraining.title}</Text>
-                            <Text style={styles.courseIntro}>Develop practical leadership skills tailored for superintendents.</Text>
-                        </View>
-                    </View>
-
-                    {/* Progress Bar */}
-                    <View style={styles.progressBarBackground}>
-                        <View style={[styles.progressBarFill, { width: '50%' }]} />
-                    </View>
-                    <Text style={styles.progressText}>1/2 modules completed</Text>
+            {/* <LoadingOverlay visible={loading} /> */}
+            {/* Scrollable Content */}
+            <Animated.ScrollView
+                style={styles.container}
+                onScroll={handleScroll}
+                scrollEventThrottle={16} // Ensures smooth scrolling
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Header Section */}
+                <View style={styles.header}>
+                    <Text style={styles.greeting}>
+                        {getGreetingMessage(user)} {user?.username}
+                        {"\n"}{"\n"}
+                    </Text>
                 </View>
-            ) : (
-                <Text style={styles.noSessions}>No aCurrent training available.</Text>
-            )}
 
-            {/* Popular Courses */}
-            <View style={styles.popularCoursesHeader}>
-                <Text style={styles.sectionTitle}>Recommended Trainings</Text>
-                <TouchableOpacity
-                    onPress={() => { navigation.navigate('AllCourses' as never) }}
-                >
-                    <Text style={styles.seeAll}>SEE ALL</Text>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.courseFilterContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <TouchableOpacity style={[styles.filterButton, styles.activeFilter]}
-                        onPress={() => { navigation.navigate('AllCourses' as never) }}
+                {/* Search Bar */}
+                {/* <SearchBar
+                    placeholder="Search for resources, trainings, or policies..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onFilterPress={handleFilterPress}
+                    filterIconColor="filter-sharp"
+                /> */}
+
+                {/* Announcements Section */}
+                <Text style={styles.sectionTitle}>Announcements</Text>
+                <Announcements data={announcements} onViewAll={handleViewAll} />
+
+                {/* Assigned Sessions Section */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Sessions</Text>
+                    <TouchableOpacity
+                        style={styles.viewAllSessionsButton}
+                        onPress={() => navigation.navigate('AllSessions' as never)}
                     >
-                        <Text style={styles.filterTextActive}>All</Text>
+                        <Text style={styles.viewAllSessionsText}>VIEW ALL</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.filterButton}>
-                        <Text style={styles.filterText}>Policy Updates</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.filterButton}>
-                        <Text style={styles.filterText}>Leadership</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.filterButton}>
-                        <Text style={styles.filterText}>Community Building</Text>
-                    </TouchableOpacity>
-                </ScrollView>
-            </View>
-
-            {/* Course Cards */}
-            {groupedTrainings.map((row, rowIndex) => (
-                <View style={styles.row} key={`row-${rowIndex}`}>
-                    {row.map((training) => (
+                </View>
+                {assignedSessions.length > 0 ? (
+                    assignedSessions.slice(0, 2).map((session) => (
                         <TouchableOpacity
-                            key={training.id}
-                            style={styles.courseCard}
-                            onPress={() => navigation.navigate('SingleCourse', { id: training.id } as never)}
+                            key={session.id}
+                            style={styles.sessionCard}
+                            onPress={() => handleViewSessionDetails(session)}
                         >
-                            <Image source={{ uri: training.posterUrl }} style={styles.courseImage} />
-                            <View style={styles.courseContent}>
-                                <Text style={styles.courseTitle}>{training.title}</Text>
-                                <Text style={styles.coursePrice}>Free</Text>
-                                <Text style={styles.courseRating}>
-                                    <Ionicons name="star" size={14} color="gold" /> 4.8 | 120 Participants
+                            <View style={styles.sessionContent}>
+                                <Text style={styles.sessionTitle}>{session.title}</Text>
+                                <Text style={styles.sessionDescription}>{session.description}</Text>
+                                <Text style={styles.sessionDateTime}>
+                                    {formatDate(session.date)} | {session.startTime}, {session.endTime}
                                 </Text>
                             </View>
                         </TouchableOpacity>
-                    ))}
+                    ))
+                ) : (
+                    <Text style={styles.noSessions}>No assigned sessions available.</Text>
+                )}
+
+
+                {/* Current Course Progress */}
+                <View style={styles.currentCoursesHeader}>
+                    <Text style={styles.sectionTitle}>Your Current Training</Text>
+                    <TouchableOpacity
+                        onPress={() => { navigation.navigate('UserCourses' as never) }}
+                    >
+                        <Text style={styles.seeAll}>VIEW ALL</Text>
+                    </TouchableOpacity>
                 </View>
-            ))}
-        </ScrollView>
+                {currentTraining ? (
+                    <View style={styles.courseProgressContainer}>
+                        <View style={styles.courseInfo}>
+                            <TouchableOpacity style={styles.bookIcon}>
+                                <Ionicons name="book-outline" size={44} color="black" />
+                            </TouchableOpacity>
+                            <View style={styles.courseDetails}>
+                                <Text style={styles.courseName}>{currentTraining.title}</Text>
+                                <Text style={styles.courseIntro}>{currentTraining.description.length > 60 ? `${currentTraining.description.substring(0, 60)}...` : currentTraining.description}</Text>
+                            </View>
+                        </View>
+
+                        {/* Progress Bar */}
+                        {/* <View style={styles.progressBarBackground}>
+                            <View style={[styles.progressBarFill, { width: '50%' }]} />
+                        </View>
+                        <Text style={styles.progressText}>1/2 modules completed</Text> */}
+                    </View>
+                ) : (
+                    <Text style={styles.noSessions}>No aCurrent training available.</Text>
+                )}
+
+                {/* Popular Courses */}
+                <View style={styles.popularCoursesHeader}>
+                    <Text style={styles.sectionTitle}>Recommended Trainings</Text>
+                    <TouchableOpacity
+                        onPress={() => { navigation.navigate('AllCoursesScreen' as never) }}
+                    >
+                        <Text style={styles.seeAll}>SEE ALL</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.courseFilterContainer}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <TouchableOpacity style={[styles.filterButton, styles.activeFilter]}
+                            onPress={() => { navigation.navigate('AllCoursesScreen' as never) }}
+                        >
+                            <Text style={styles.filterTextActive}>All</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.filterButton}>
+                            <Text style={styles.filterText}>Policy Updates</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.filterButton}>
+                            <Text style={styles.filterText}>Leadership</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.filterButton}>
+                            <Text style={styles.filterText}>Community Building</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+
+                {/* Course Cards */}
+                {groupedTrainings.map((row, rowIndex) => (
+                    <View style={styles.row} key={`row-${rowIndex}`}>
+                        {row.map((training) => (
+                            <TouchableOpacity
+                                key={training.id}
+                                style={styles.courseCard}
+                                onPress={() => navigation.navigate('SingleCourse', { id: training.id } as never)}
+                            >
+                                <Image source={{ uri: training.posterUrl }} style={styles.courseImage} />
+                                <View style={styles.courseContent}>
+                                    <Text style={styles.courseTitle}>{training.title.length > 18 ? `${training.title.substring(0, 18)}...` : training.title}</Text>
+                                    <Text style={styles.coursePrice}>{training.description.length > 60 ? `${training.description.substring(0, 60)}...` : training.description}</Text>
+                                    {/* <Text style={styles.courseRating}>
+                                        <Ionicons name="star" size={14} color="gold" />
+                                    </Text> */}
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                ))}
+
+                <CalendarOfEvents events={events} />
+
+            </Animated.ScrollView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f6fa', paddingHorizontal: 12, marginTop: 20, },
+    container: { flex: 1, backgroundColor: '#f5f6fa', paddingHorizontal: 12, marginTop: 26 },
+    addButton: {
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
+        backgroundColor: '#1E90FF',
+        borderRadius: 30,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 5,
+    },
     header: { display: "flex", flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
     greeting: { fontSize: 20, fontWeight: 'bold', color: '#000' },
     subGreeting: { fontSize: 14, color: '#555', fontWeight: "normal" },

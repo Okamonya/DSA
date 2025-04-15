@@ -48,11 +48,11 @@ export const createDiscussion = createAsyncThunk<
 
 export const createReply = createAsyncThunk<
     { discussionId: string; reply: Reply },
-    { discussionId: string; content: string },
+    { discussionId: string; userId: string; content: string },
     { rejectValue: CapturedMessages }
->("discussion/createReply", async ({ discussionId, content }, { rejectWithValue }) => {
+>("discussion/createReply", async ({ discussionId, userId, content }, { rejectWithValue }) => {
     try {
-        const reply = await discussionApis.createReply(discussionId, content);
+        const reply = await discussionApis.createReply(discussionId, userId, content);
         return { discussionId, reply };
     } catch (error: any) {
         if (!error.response) throw error;

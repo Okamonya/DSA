@@ -8,13 +8,14 @@ export interface Discussion {
     lastUpdated: string;
     image?: string;
     replies: Reply[];
+    createdAt: string | number | Date;
 }
 
 
 export interface Reply {
     id: string;
     discussionId: string;
-    user: User;
+    user: Partial<User>;
     content: string;
     date: string;
 };

@@ -1,6 +1,7 @@
 export interface AuthState {
     isAuthenticated: boolean;
     user: User | null;
+    users: User[];
     token: string | null;
     loading: boolean;
     error: CapturedMessages | null;
@@ -9,10 +10,12 @@ export interface AuthState {
 export interface User {
     id: string;
     email: string;
-    role: string;
+    phoneNumber: string;
     password: string;
-    region: string;
+    districtId: string;
     username: string;
+    role: string;
+    hasSeenTraining: boolean;
 }
 
 export interface LoginCredentials {

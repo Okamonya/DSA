@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "DSA",
-    "slug": "DSA",
+    "slug": "dsa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,8 +27,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ffcbc6aa-8ceb-41d3-9dd1-6fc000ef8746"
+        "projectId": "e0b9f202-18ba-4739-a96e-16d2ce94feaa"
       }
-    }
+    },
+    "owner": "krinova"
   }
 }

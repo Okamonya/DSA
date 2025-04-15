@@ -6,6 +6,8 @@ import sessionSlice from "./sessions/sessionSlice";
 import trainingSlice from "./course/trainingSlice";
 import discussionSlice from "./discussion/discussionSlice";
 import resourcesSlice from "./resources/resourcesSlice";
+import districtsSlice from "./field/fieldSlice"
+import eventSlice from "./event/eventSlice";
 
 
 const rootReducer = combineReducers({
@@ -15,7 +17,9 @@ const rootReducer = combineReducers({
     sessions: sessionSlice,
     training: trainingSlice,
     discussions: discussionSlice,
-    resources: resourcesSlice
+    resources: resourcesSlice,
+    districts: districtsSlice,
+    events: eventSlice
 })
 
 export default rootReducer;

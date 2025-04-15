@@ -1,12 +1,23 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { TrainingModule, CapturedMessages, EnrollInTrainingModule } from "./trainingTypes";
+import { TrainingModule, CapturedMessages, EnrollInTrainingModule, UserTraining } from "./trainingTypes";
 import { trainingAPI } from "./trainingAPIs";
 
 // Fetch all training modules
-export const fetchTrainingModules = createAsyncThunk<TrainingModule[], void, { rejectValue: CapturedMessages }>(
-    "training/fetchAll", async (_, { rejectWithValue }) => {
+export const fetchTrainingModules = createAsyncThunk<TrainingModule[], { userId: string }, { rejectValue: CapturedMessages }>(
+    "training/fetchAll", async ({ userId }, { rejectWithValue }) => {
         try {
-            return await trainingAPI.fetchTrainingModules();
+            return await trainingAPI.fetchTrainingModules(userId);
+        } catch (error: any) {
+            if (!error.response) throw error;
+            return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
+        }
+    });
+
+// Fetch all training modules
+export const fetchUserTrainings = createAsyncThunk<UserTraining[], { userId: string }, { rejectValue: CapturedMessages }>(
+    "training/fetchAllUser", async ({ userId }, { rejectWithValue }) => {
+        try {
+            return await trainingAPI.fetchUserTrainings(userId);
         } catch (error: any) {
             if (!error.response) throw error;
             return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
@@ -14,10 +25,10 @@ export const fetchTrainingModules = createAsyncThunk<TrainingModule[], void, { r
     });
 
 // Fetch a single training module
-export const fetchSingleTrainingModule = createAsyncThunk<TrainingModule, { id: string }, { rejectValue: CapturedMessages }>(
-    "training/fetchSingle", async ({ id }, { rejectWithValue }) => {
+export const fetchSingleTrainingModule = createAsyncThunk<TrainingModule, { id: string, userId: string }, { rejectValue: CapturedMessages }>(
+    "training/fetchSingle", async ({ id, userId }, { rejectWithValue }) => {
         try {
-            return await trainingAPI.fetchSingleTrainingModule(id);
+            return await trainingAPI.fetchSingleTrainingModule(id, userId);
         } catch (error: any) {
             if (!error.response) throw error;
             return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
@@ -36,10 +47,10 @@ export const createTrainingModule = createAsyncThunk<TrainingModule, Partial<Tra
     });
 
 // Update a training module
-export const updateTrainingModule = createAsyncThunk<TrainingModule, { id: string; training: Partial<TrainingModule> }, { rejectValue: CapturedMessages }>(
-    "training/update", async ({ id, training }, { rejectWithValue }) => {
+export const updateTrainingModule = createAsyncThunk<TrainingModule, { id: string; userId: string; training: Partial<TrainingModule> }, { rejectValue: CapturedMessages }>(
+    "training/update", async ({ id, userId, training }, { rejectWithValue }) => {
         try {
-            return await trainingAPI.updateTrainingModule(id, training);
+            return await trainingAPI.updateTrainingModule(id, userId, training);
         } catch (error: any) {
             if (!error.response) throw error;
             return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
@@ -47,10 +58,10 @@ export const updateTrainingModule = createAsyncThunk<TrainingModule, { id: strin
     });
 
 // Delete a training module
-export const deleteTrainingModule = createAsyncThunk<void, { id: string }, { rejectValue: CapturedMessages }>(
-    "training/delete", async ({ id }, { rejectWithValue }) => {
+export const deleteTrainingModule = createAsyncThunk<void, { id: string; userId: string; }, { rejectValue: CapturedMessages }>(
+    "training/delete", async ({ id, userId }, { rejectWithValue }) => {
         try {
-            await trainingAPI.deleteTrainingModule(id);
+            await trainingAPI.deleteTrainingModule(id, userId);
         } catch (error: any) {
             if (!error.response) throw error;
             return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
@@ -67,6 +78,23 @@ export const enrollInTrainingModule = createAsyncThunk<TrainingModule, EnrollInT
             return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
         }
     });
+
+// Set current training for a user
+export const completeTraining = createAsyncThunk<
+    void,
+    { userId: string; trainingId: string },
+    { rejectValue: CapturedMessages }
+>(
+    "training/completeTraining",
+    async ({ userId, trainingId }, { rejectWithValue }) => {
+        try {
+            await trainingAPI.completeTraining(userId, trainingId);
+        } catch (error: any) {
+            if (!error.response) throw error;
+            return rejectWithValue({ status_code: error.response.status, message: error.response.data.message });
+        }
+    }
+);
 
 // Set current training for a user
 export const setCurrentTraining = createAsyncThunk<

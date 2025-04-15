@@ -23,9 +23,9 @@ const Announcements: React.FC<AnnouncementsProps> = ({ data, onViewAll }) => {
         updatedAt: "",
     });
 
-    const handleViewAll = async () => {
-        navigation.navigate('AllAnnouncements')
-    }
+    const handleViewAll = () => {
+        navigation.navigate("AllAnnouncements");
+    };
 
     const renderAnnouncement = ({ item }: { item: Announcement }) => {
         if (item.id === "view_all") {
@@ -42,12 +42,14 @@ const Announcements: React.FC<AnnouncementsProps> = ({ data, onViewAll }) => {
                 style={styles.card}
             >
                 <Text style={styles.cardTitle}>
-                    {item.title.length > 18 ? `${item.title.substring(0, 20)}...` : item.title}
+                    {item.title.length > 18 ? `${item.title.substring(0, 18)}...` : item.title}
                 </Text>
                 <Text style={styles.cardDescription}>
-                    {item.content.length > 80 ? `${item.content.substring(0, 80)}...` : item.content}
+                    {item.content.length > 60 ? `${item.content.substring(0, 60)}...` : item.content}
                 </Text>
-                <Text style={styles.cardDate}>{item.createdAt}</Text>
+                {/* <Text style={styles.cardDate}>
+                    {new Date(item.date || "").toLocaleDateString()}
+                </Text> */}
             </TouchableOpacity>
         );
     };
@@ -66,18 +68,18 @@ const Announcements: React.FC<AnnouncementsProps> = ({ data, onViewAll }) => {
 
 const styles = StyleSheet.create({
     horizontalList: {
-        gap: 10,
-        paddingVertical: 8,
+        gap: 12,
+        paddingVertical: 10,
         paddingHorizontal: 16,
     },
     card: {
         backgroundColor: "#fff",
-        borderRadius: 8,
+        borderRadius: 12,
         padding: 16,
-        width: 160,
+        width: 150,
         shadowColor: "#000",
         shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowRadius: 6,
         elevation: 5,
         alignItems: "center",
         justifyContent: "center",
@@ -85,17 +87,20 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 16,
         fontWeight: "bold",
-        marginBottom: 4,
+        marginBottom: 8,
         textAlign: "center",
+        color: "#333",
     },
     cardDescription: {
         fontSize: 14,
         marginBottom: 8,
         textAlign: "center",
+        color: "#666",
     },
     cardDate: {
         fontSize: 12,
-        color: "#888",
+        color: "#999",
+        textAlign: "center",
     },
     viewAllCard: {
         backgroundColor: "#e8eaf6",

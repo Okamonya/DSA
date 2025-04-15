@@ -15,7 +15,7 @@ export const COLORS = {
     blueLight: '#d6ecf3',
     transparent: 'transparent',
     divider: '#dbdde3',
-    green: '#d4edda',
+    green: 'green',
     danger: 'red',
     lightDanger: 'light-red',
     cardBackground: '#dbdde3',

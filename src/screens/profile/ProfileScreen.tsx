@@ -12,6 +12,14 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch } from "../../redux/features/store";
+import { selectAuthLoading, selectUser } from "../../redux/features/auth/authSelectors";
+import { logout } from "../../redux/features/auth/authSlice";
+import LoadingOverlay from "../../components/loader/LoaderOverlay";
+import { StatusBar } from "expo-status-bar";
+import { COLORS } from "../../util/colors";
+import { logoutUser } from "../../redux/features/auth/authActions";
 
 type SettingOption = {
     id: string;
@@ -25,6 +33,9 @@ const ProfileScreen: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [username, setUsername] = useState("John Doe");
     const [email, setEmail] = useState("johndoe@example.com");
+    const dispatch = useDispatch<AppDispatch>();
+    const user = useSelector(selectUser);
+    const loading = useSelector(selectAuthLoading);
 
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -36,6 +47,11 @@ const ProfileScreen: React.FC = () => {
         if (!result.canceled) {
             setProfileImage(result.assets[0].uri);
         }
+    };
+
+    const handleLogout = async () => {
+        // Add your logout logic here
+        await dispatch(logoutUser())
     };
 
     const settingsOptions: SettingOption[] = [
@@ -54,6 +70,15 @@ const ProfileScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
+            <StatusBar style="light" backgroundColor={COLORS.primary} />
+            {/* Header Section */}
+            {/* <LoadingOverlay visible={loading} /> */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                    <Ionicons name="log-out-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+            </View>
+
             {/* Profile Section */}
             <View style={styles.profileHeader}>
                 <TouchableOpacity onPress={pickImage}>
@@ -63,8 +88,8 @@ const ProfileScreen: React.FC = () => {
                     />
                     <Ionicons name="camera" size={20} color="#fff" style={styles.editIcon} />
                 </TouchableOpacity>
-                <Text style={styles.profileName}>{username}</Text>
-                <Text style={styles.profileEmail}>{email}</Text>
+                <Text style={styles.profileName}>{user?.username}</Text>
+                <Text style={styles.profileEmail}>{user?.email}</Text>
                 <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
                     <Ionicons name="pencil" size={16} color="#fff" />
                     <Text style={styles.editButtonText}>Edit Profile</Text>
@@ -109,7 +134,24 @@ const ProfileScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#f5f6fa", padding: 16, marginTop: 20 },
+    container: { flex: 1, backgroundColor: "#f5f6fa", padding: 16, marginTop: 10 },
+    header: {
+        position: 'absolute',
+        top: 26,
+        right: 4,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20,
+    },
+    headerTitle: { fontSize: 20, fontWeight: "bold", color: "#4b5574" },
+    logoutButton: {
+        backgroundColor: "#4b5574",
+        padding: 8,
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     profileHeader: { alignItems: "center", marginBottom: 20 },
     profileImage: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
     editIcon: { position: "absolute", bottom: 10, right: 10, backgroundColor: "#4b5574", padding: 4, borderRadius: 50 },

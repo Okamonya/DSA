@@ -1,7 +1,7 @@
 export interface Announcement {
+    link: string;
     id: string;
     title: string;
-    description: string;
     content: string;
     date?: Date;
     createdAt: string;

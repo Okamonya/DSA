@@ -1,16 +1,23 @@
 import { api } from "../../api";
-import { EnrollInTrainingModule, TrainingModule } from "./trainingTypes";
+import { EnrollInTrainingModule, TrainingModule, UserTraining } from "./trainingTypes";
 
 export const trainingAPI = {
     // Fetch all training modules
-    fetchTrainingModules: async (): Promise<TrainingModule[]> => {
-        const response = await api.get(`/api/user-trainings/training-modules`);
+    fetchTrainingModules: async (userId: string): Promise<TrainingModule[]> => {
+        const response = await api.get(`/api/user-trainings/training-modules/${userId}`);
+        return response.data;
+    },
+
+    
+    // Fetch all training modules
+    fetchUserTrainings: async (userId: string): Promise<UserTraining[]> => {
+        const response = await api.get(`/api/user-trainings/user/${userId}`);
         return response.data;
     },
 
     // Fetch a single training module
-    fetchSingleTrainingModule: async (id: string): Promise<TrainingModule> => {
-        const response = await api.get(`/api/user-trainings/training-modules/${id}`);
+    fetchSingleTrainingModule: async (id: string, userId: string): Promise<TrainingModule> => {
+        const response = await api.get(`/api/user-trainings/training-modules/${id}/${userId}`);
         return response.data;
     },
 
@@ -21,14 +28,14 @@ export const trainingAPI = {
     },
 
     // Update a training module
-    updateTrainingModule: async (id: string, data: Partial<TrainingModule>): Promise<TrainingModule> => {
-        const response = await api.put(`/api/user-trainings/training-modules/${id}`, data);
+    updateTrainingModule: async (id: string, userId: string, data: Partial<TrainingModule>): Promise<TrainingModule> => {
+        const response = await api.put(`/api/user-trainings/training-modules/${id}/${userId}`, data);
         return response.data;
     },
 
     // Delete a training module
-    deleteTrainingModule: async (id: string): Promise<void> => {
-        await api.delete(`/api/user-trainings/training-modules/${id}`);
+    deleteTrainingModule: async (id: string, userId: string): Promise<void> => {
+        await api.delete(`/api/user-trainings/training-modules/${id}/${userId}`);
     },
 
     // Enroll to a training module
@@ -36,6 +43,12 @@ export const trainingAPI = {
         const response = await api.post(`/api/user-trainings`, enrollData);
         return response.data;
     },
+
+     // complete training
+     completeTraining: async (userId: string, trainingId: string): Promise<void> => {
+        await api.put(`/api/user-trainings/complete/${userId}`, { trainingId });
+    },
+
 
     // Set current training
     setCurrentTraining: async (userId: string, trainingId: string): Promise<void> => {
