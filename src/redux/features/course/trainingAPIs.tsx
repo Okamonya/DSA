@@ -4,7 +4,7 @@ import { EnrollInTrainingModule, TrainingModule, UserTraining } from "./training
 export const trainingAPI = {
     // Fetch all training modules
     fetchTrainingModules: async (userId: string): Promise<TrainingModule[]> => {
-        const response = await api.get(`/api/user-trainings/training-modules/${userId}`);
+        const response = await api.get(`/api/user-trainings/training-modules`);
         return response.data;
     },
 

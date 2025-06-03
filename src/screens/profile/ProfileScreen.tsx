@@ -90,10 +90,10 @@ const ProfileScreen: React.FC = () => {
                 </TouchableOpacity>
                 <Text style={styles.profileName}>{user?.username}</Text>
                 <Text style={styles.profileEmail}>{user?.email}</Text>
-                <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
+                {/* <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
                     <Ionicons name="pencil" size={16} color="#fff" />
                     <Text style={styles.editButtonText}>Edit Profile</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
             </View>
 
             {/* Settings Section */}
@@ -143,6 +143,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: 20,
+        zIndex: 10
     },
     headerTitle: { fontSize: 20, fontWeight: "bold", color: "#4b5574" },
     logoutButton: {

@@ -1,12 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-    createDiscussion,
-    createReply,
-    fetchDiscussions,
-    fetchReplies,
-} from "./discussionActions";
 import { CapturedMessages, DiscussionState } from "./discussionTypes";
 import socket from "../../../util/socket";
+import { createDiscussion, createReply, fetchDiscussions, fetchReplies } from "./discussionActions";
 
 const initialState: DiscussionState = {
     discussions: [],

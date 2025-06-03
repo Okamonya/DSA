@@ -22,6 +22,7 @@ import SplashScreenOne from "../components/splashscreen/SplashScreenOne";
 import SplashScreenTwo from "../components/splashscreen/SplashScreenTwo";
 import TrainingSplashScreen from "../components/splashscreen/TrainingSplashScreen";
 import FSOListPage from "../components/users/Users";
+import SuperintendentDetailsScreen from "../components/users/SuperintendentDetails";
 
 const Stack = createStackNavigator();
 
@@ -112,6 +113,11 @@ const AppNavigator: React.FC = () => (
                         <FSOListPage />
                     </AuthGuard>
                 )}
+            />
+            <Stack.Screen
+                name="SuperintendentDetails"
+                component={SuperintendentDetailsScreen}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="MonthlyTemplates"

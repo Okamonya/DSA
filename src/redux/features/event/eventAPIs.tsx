@@ -3,7 +3,7 @@ import { Event } from "./eventTypes";
 
 export const eventAPI = {
     fetchAll: async (id: string): Promise<Event[]> => {
-        const response = await api.get(`/api/events/all/${id}`);
+        const response = await api.get(`/api/events/all}`);
         return response.data;
     },
 

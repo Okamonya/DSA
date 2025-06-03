@@ -3,15 +3,15 @@ import { Announcement } from "./announceTypes";
 
 export const announcementAPI = {
     fetchAnnouncements: async (id: string): Promise<Announcement[]> => {
-        const response = await api.get(`/api/announcements/${id}`);
+        const response = await api.get(`/api/announcements`);
         return response.data;
     },
     fetchAnnouncementById: async (id: string): Promise<Announcement> => {
-        const response = await api.get(`/api/announcements/single/${id}`);
+        const response = await api.get(`/api/announcements/${id}`);
         return response.data;
     },
     createAnnouncement: async (data: Omit<Announcement, "id" | "createdAt" | "updatedAt">, id: string): Promise<Announcement> => {
-        const response = await api.post(`/api/announcements/${id}`, data);
+        const response = await api.post(`/api/announcements`, data);
         return response.data;
     },
     updateAnnouncement: async (id: string, data: Partial<Announcement>): Promise<Announcement> => {

@@ -305,7 +305,8 @@ const styles = StyleSheet.create({
   playButton: {
     position: 'absolute',
     top: -14,
-    right: 10
+    right: 10,
+    zIndex: 10
   },
   category: {
     fontSize: 14,

@@ -4,7 +4,7 @@ import { Session } from "./sessionTypes";
 export const sessionAPI = {
     // Fetch all sessions
     fetchAllSessions: async (id: string): Promise<Session[]> => {
-        const response = await api.get(`/api/sessions/all/${id}`);
+        const response = await api.get(`/api/sessions/all`);
         return response.data;
     },
 
@@ -16,7 +16,7 @@ export const sessionAPI = {
 
     // Fetch a single session
     fetchSingleSession: async (id: string): Promise<Session> => {
-        const response = await api.get(`/api/sessions/${id}`);
+        const response = await api.get(`/api/sessions/single/${id}`);
         return response.data;
     },
 

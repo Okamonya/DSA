@@ -20,11 +20,11 @@ export const authAPI = {
     return response.data;
   },
   updateUser: async (formData: Partial<User>, user_id: string): Promise<CapturedMessages> => {
-    const response = await api.patch(`/api/auth/user/update/${user_id}`, formData);
+    const response = await api.patch(`/api/users/update/user/${user_id}`, formData);
     return response.data;
   },
   fetchUsers: async (id: string): Promise<User[]> => {
-    const response = await api.get(`/api/users/${id}`);
+    const response = await api.get(`/api/users`);
     return response.data;
   },
 

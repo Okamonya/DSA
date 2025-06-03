@@ -25,27 +25,12 @@ type Resource = {
 const ResourcesScreen: React.FC = () => {
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [resources, setResources] = useState<Resource[]>([
-    {
-      id: "1",
-      title: "Monthly Reporting Template",
-      category: "Templates",
-      description: "Standardized template for monthly district reports.",
-    },
-    {
-      id: "2",
-      title: "Pastoral Care Guidelines",
-      category: "Guidelines",
-      description: "Guidelines for providing pastoral care in your district.",
-    },
-  ]);
+  const dispatch = useDispatch<AppDispatch>();
+  const resources = useSelector(selectResources);
 
   const filteredResources = resources.filter((resource) =>
     resource.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const dispatch = useDispatch<AppDispatch>();
-  const resouces = useSelector(selectResources);
 
   useFocusEffect(
     useCallback(() => {

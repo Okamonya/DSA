@@ -1,5 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Animated } from 'react-native';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    Image,
+    Animated,
+    Dimensions,
+    SafeAreaView,
+    Platform
+} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Announcements from '../../components/community/Announcements';
@@ -16,20 +27,23 @@ import { AppNavigationProp } from '../../components/navTypes';
 import { Session } from '../../redux/features/sessions/sessionTypes';
 import { formatDate } from '../../util/dateTimeFormat';
 import AddButton from '../../components/addButton/AddButton';
-import CalendarOfEvents from '../../components/event/CalenderOfEvents';
 import { fetchEvents } from '../../redux/features/event/eventActions';
 import { selectEventLoading, selectEvents } from '../../redux/features/event/eventSelector';
 import LoadingOverlay from '../../components/loader/LoaderOverlay';
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '../../util/colors';
 import { fetchUser } from '../../redux/features/auth/authActions';
+import { LinearGradient } from 'expo-linear-gradient';
+import EventCalendar from '../../components/event/CalenderOfEvents';
 
 type UserRole = "admin" | "district_superintendent" | "field_strategy_coordinator";
 
 interface User {
     username: string;
-    role: UserRole; // Role is required
+    role: UserRole;
 }
+
+const { width } = Dimensions.get('window');
 
 const HomeScreen: React.FC = () => {
     const navigation = useNavigation<AppNavigationProp>();
@@ -39,29 +53,28 @@ const HomeScreen: React.FC = () => {
     const trainings = useSelector(selectTrainingModules).slice(0, 6);
     const currentTraining = useSelector(selectCurrentTraining);
     const events = useSelector(selectEvents);
-    console.log('events', events)
     const eventLoading = useSelector(selectEventLoading);
     const trainingLoading = useSelector(selectTrainingLoading);
     const sessionLoading = useSelector(selectSessionLoading);
-    const loading = eventLoading || trainingLoading || sessionLoading;
-
+    
     const dispatch = useDispatch<AppDispatch>();
 
     const [searchQuery, setSearchQuery] = useState("");
-
     const [isAddButtonOpen, setIsAddButtonOpen] = useState(false);
     const [isButtonVisible, setIsButtonVisible] = useState(true);
-    const scrollY = new Animated.Value(0);
+    const [activeFilter, setActiveFilter] = useState("All");
+
+    // Fix the infinite loop issue by using useRef
+    const scrollY = useRef(new Animated.Value(0)).current;
 
     // Determine if the user is allowed to see the Add button
     const canViewAddButton = user?.role === 'admin' || user?.role === 'field_strategy_coordinator';
 
-    const getGreetingMessage = (user: User): string => {
+    const getGreetingMessage = useCallback((user: User): string => {
         if (!user || !user.role) {
-            return "Welcome, User"; // Default message for unknown roles or users
+            return "Welcome, User";
         }
 
-        // Map roles to greetings
         const roleGreetings: Record<UserRole, string> = {
             admin: "Welcome, Admin",
             district_superintendent: "Welcome, Superintendent",
@@ -69,10 +82,9 @@ const HomeScreen: React.FC = () => {
         };
 
         return roleGreetings[user.role] || "Welcome, User";
-    };
+    }, []);
 
     useEffect(() => {
-        // Set a timeout to hide the button after 5 seconds
         const timeout = setTimeout(() => {
             setIsButtonVisible(false);
         }, 5000);
@@ -80,400 +92,565 @@ const HomeScreen: React.FC = () => {
         return () => clearTimeout(timeout);
     }, []);
 
-    const handleScroll = Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        {
-            listener: (event: any) => {
-                const currentOffset = event.nativeEvent.contentOffset.y;
-                setIsButtonVisible(currentOffset <= 0); // Show the button at the top
-            },
-            useNativeDriver: false,
-        }
+    // Fix: Memoize the handleScroll function properly
+    const handleScroll = useMemo(
+        () => Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            {
+                listener: (event: any) => {
+                    const currentOffset = event.nativeEvent.contentOffset.y;
+                    setIsButtonVisible(currentOffset <= 0);
+                },
+                useNativeDriver: false,
+            }
+        ),
+        [scrollY]
     );
+
+    // Fix: Memoize user ID to prevent unnecessary re-fetches
+    const userId = useMemo(() => user?.id, [user?.id]);
 
     useFocusEffect(
         useCallback(() => {
-            if (user) {
-                const id = user.id
-                dispatch(fetchAnnouncements({ id }));
-                dispatch(fetchAllSessionsById({ id }));
-                dispatch(fetchAllSessions({ id }));
-                dispatch(fetchTrainingModules({ userId: id }))
-                dispatch(fetchEvents(id));
-                dispatch(getCurrentTrainingForUser({ userId: id })).then((response) => {
-                    console.log(response)
-                });
-                dispatch(fetchUser({ id }))
+            if (userId) {
+                dispatch(fetchAnnouncements({ id: userId }));
+                dispatch(fetchAllSessionsById({ id: userId }));
+                dispatch(fetchAllSessions({ id: userId }));
+                dispatch(fetchTrainingModules({ userId }));
+                dispatch(fetchEvents(userId));
+                dispatch(getCurrentTrainingForUser({ userId }));
+                dispatch(fetchUser({ id: userId }));
             }
-        }, [])
-    )
+        }, [dispatch, userId])
+    );
 
-    const groupedTrainings = [];
-    for (let i = 0; i < trainings.length; i += 2) {
-        groupedTrainings.push(trainings.slice(i, i + 2));
-    }
+    // Fix: Properly memoize the grouped trainings calculation
+    const groupedTrainings = useMemo(() => {
+        const result = [];
+        for (let i = 0; i < trainings.length; i += 2) {
+            result.push(trainings.slice(i, i + 2));
+        }
+        return result;
+    }, [trainings]);
 
-
-    const toggleAddButton = () => {
+    const toggleAddButton = useCallback(() => {
         setIsAddButtonOpen((prev) => !prev);
-    };
+    }, []);
 
-    const handleFilterPress = () => {
-        console.log("Filter button pressed!");
-    };
+    const handleFilterPress = useCallback((filter: string) => {
+        setActiveFilter(filter);
+        // Add filter logic here
+    }, []);
 
-    const handleViewAll = () => {
+    const handleViewAll = useCallback(() => {
         console.log("View All", "Navigate to the full announcements list.");
-    };
+    }, []);
 
-    const handleViewSessionDetails = (session: Session) => {
+    const handleViewSessionDetails = useCallback((session: Session) => {
         navigation.navigate('SingleSession', { session });
-    };
+    }, [navigation]);
+
+    const renderSectionHeader = useCallback((title: string, onPress: () => void, buttonText: string = "VIEW ALL") => (
+        <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+                <View style={styles.titleAccent} />
+                <Text style={styles.sectionTitle}>{title}</Text>
+            </View>
+            <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={onPress}
+            >
+                <Text style={styles.viewAllText}>{buttonText}</Text>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
+        </View>
+    ), []);
+
+    // Memoize filters array to prevent recreation
+    const filters = useMemo(() => ["All", "Policy Updates", "Leadership", "Community Building"], []);
 
     return (
-        <View style={{ flex: 1 }}>
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar style="dark" backgroundColor="#FFFFFF" />
+
             {/* Animated Add Button */}
             {canViewAddButton && isButtonVisible && (
                 <AddButton opened={isAddButtonOpen} toggleOpened={toggleAddButton} />
             )}
 
-            <StatusBar style="light" backgroundColor={COLORS.primary} />
+            {/* Header with gradient */}
+            <View style={styles.headerContainer}>
+                <LinearGradient
+                    colors={['#f0f8ff', '#ffffff']}
+                    style={styles.headerGradient}
+                >
+                    <View style={styles.headerContent}>
+                        <View>
+                            <Text style={styles.greeting}>
+                                {getGreetingMessage(user)}
+                            </Text>
+                            <Text style={styles.username}>{user?.username}</Text>
+                        </View>
+                        <TouchableOpacity style={styles.profileButton}>
+                            <Ionicons name="person-circle-outline" size={40} color={COLORS.primary} />
+                        </TouchableOpacity>
+                    </View>
+                </LinearGradient>
+            </View>
 
-            {/* <LoadingOverlay visible={loading} /> */}
             {/* Scrollable Content */}
             <Animated.ScrollView
                 style={styles.container}
                 onScroll={handleScroll}
-                scrollEventThrottle={16} // Ensures smooth scrolling
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
             >
-                {/* Header Section */}
-                <View style={styles.header}>
-                    <Text style={styles.greeting}>
-                        {getGreetingMessage(user)} {user?.username}
-                        {"\n"}{"\n"}
-                    </Text>
-                </View>
-
-                {/* Search Bar */}
-                {/* <SearchBar
-                    placeholder="Search for resources, trainings, or policies..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    onFilterPress={handleFilterPress}
-                    filterIconColor="filter-sharp"
-                /> */}
-
                 {/* Announcements Section */}
-                <Text style={styles.sectionTitle}>Announcements</Text>
+                {renderSectionHeader("Announcements", handleViewAll)}
                 <Announcements data={announcements} onViewAll={handleViewAll} />
 
                 {/* Assigned Sessions Section */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Sessions</Text>
-                    <TouchableOpacity
-                        style={styles.viewAllSessionsButton}
-                        onPress={() => navigation.navigate('AllSessions' as never)}
-                    >
-                        <Text style={styles.viewAllSessionsText}>VIEW ALL</Text>
-                    </TouchableOpacity>
-                </View>
+                {renderSectionHeader("Sessions", () => navigation.navigate('AllSessions' as never))}
                 {assignedSessions.length > 0 ? (
-                    assignedSessions.slice(0, 2).map((session) => (
-                        <TouchableOpacity
-                            key={session.id}
-                            style={styles.sessionCard}
-                            onPress={() => handleViewSessionDetails(session)}
-                        >
-                            <View style={styles.sessionContent}>
-                                <Text style={styles.sessionTitle}>{session.title}</Text>
-                                <Text style={styles.sessionDescription}>{session.description}</Text>
-                                <Text style={styles.sessionDateTime}>
-                                    {formatDate(session.date)} | {session.startTime}, {session.endTime}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))
+                    <View style={styles.sessionsContainer}>
+                        {assignedSessions.map((session) => (
+                            <TouchableOpacity
+                                key={session.id}
+                                style={styles.sessionCard}
+                                onPress={() => handleViewSessionDetails(session)}
+                            >
+                                <View style={styles.sessionIconContainer}>
+                                    <Ionicons name="calendar" size={24} color={COLORS.primary} />
+                                </View>
+                                <View style={styles.sessionContent}>
+                                    <Text style={styles.sessionTitle} numberOfLines={1}>{session.title}</Text>
+                                    <Text style={styles.sessionDescription} numberOfLines={2}>{session.description}</Text>
+                                    <View style={styles.sessionTimeContainer}>
+                                        <Ionicons name="time-outline" size={14} color="#777" />
+                                        <Text style={styles.sessionDateTime}>
+                                            {formatDate(session.date)} | {session.startTime}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 ) : (
-                    <Text style={styles.noSessions}>No assigned sessions available.</Text>
+                    <View style={styles.emptyStateContainer}>
+                        <Ionicons name="calendar-outline" size={40} color="#ccc" />
+                        <Text style={styles.noSessions}>No assigned sessions available</Text>
+                    </View>
                 )}
 
-
                 {/* Current Course Progress */}
-                <View style={styles.currentCoursesHeader}>
-                    <Text style={styles.sectionTitle}>Your Current Training</Text>
-                    <TouchableOpacity
-                        onPress={() => { navigation.navigate('UserCourses' as never) }}
-                    >
-                        <Text style={styles.seeAll}>VIEW ALL</Text>
-                    </TouchableOpacity>
-                </View>
+                {renderSectionHeader("Your Current Training", () => navigation.navigate('UserCourses' as never))}
                 {currentTraining ? (
                     <View style={styles.courseProgressContainer}>
                         <View style={styles.courseInfo}>
-                            <TouchableOpacity style={styles.bookIcon}>
-                                <Ionicons name="book-outline" size={44} color="black" />
-                            </TouchableOpacity>
+                            <View style={styles.bookIcon}>
+                                <Ionicons name="book-outline" size={32} color={COLORS.primary} />
+                            </View>
                             <View style={styles.courseDetails}>
                                 <Text style={styles.courseName}>{currentTraining.title}</Text>
-                                <Text style={styles.courseIntro}>{currentTraining.description.length > 60 ? `${currentTraining.description.substring(0, 60)}...` : currentTraining.description}</Text>
+                                <Text style={styles.courseIntro} numberOfLines={2}>
+                                    {currentTraining.description}
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.continueButton}
+                                    onPress={() => navigation.navigate('SingleCourse', { id: currentTraining.id } as never)}
+                                >
+                                    <Text style={styles.continueButtonText}>Continue</Text>
+                                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                                </TouchableOpacity>
                             </View>
                         </View>
-
-                        {/* Progress Bar */}
-                        {/* <View style={styles.progressBarBackground}>
-                            <View style={[styles.progressBarFill, { width: '50%' }]} />
-                        </View>
-                        <Text style={styles.progressText}>1/2 modules completed</Text> */}
                     </View>
                 ) : (
-                    <Text style={styles.noSessions}>No aCurrent training available.</Text>
+                    <View style={styles.emptyStateContainer}>
+                        <Ionicons name="book-outline" size={40} color="#ccc" />
+                        <Text style={styles.noSessions}>No current training available</Text>
+                    </View>
                 )}
 
                 {/* Popular Courses */}
-                <View style={styles.popularCoursesHeader}>
-                    <Text style={styles.sectionTitle}>Recommended Trainings</Text>
-                    <TouchableOpacity
-                        onPress={() => { navigation.navigate('AllCoursesScreen' as never) }}
-                    >
-                        <Text style={styles.seeAll}>SEE ALL</Text>
-                    </TouchableOpacity>
-                </View>
+                {renderSectionHeader("Recommended Trainings", () => navigation.navigate('AllCoursesScreen' as never))}
+
+                {/* Course Filters */}
                 <View style={styles.courseFilterContainer}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <TouchableOpacity style={[styles.filterButton, styles.activeFilter]}
-                            onPress={() => { navigation.navigate('AllCoursesScreen' as never) }}
-                        >
-                            <Text style={styles.filterTextActive}>All</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.filterButton}>
-                            <Text style={styles.filterText}>Policy Updates</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.filterButton}>
-                            <Text style={styles.filterText}>Leadership</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.filterButton}>
-                            <Text style={styles.filterText}>Community Building</Text>
-                        </TouchableOpacity>
+                        {filters.map((filter) => (
+                            <TouchableOpacity
+                                key={filter}
+                                style={[
+                                    styles.filterButton,
+                                    activeFilter === filter && styles.activeFilter
+                                ]}
+                                onPress={() => handleFilterPress(filter)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.filterText,
+                                        activeFilter === filter && styles.filterTextActive
+                                    ]}
+                                >
+                                    {filter}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
                     </ScrollView>
                 </View>
 
                 {/* Course Cards */}
-                {groupedTrainings.map((row, rowIndex) => (
-                    <View style={styles.row} key={`row-${rowIndex}`}>
-                        {row.map((training) => (
-                            <TouchableOpacity
-                                key={training.id}
-                                style={styles.courseCard}
-                                onPress={() => navigation.navigate('SingleCourse', { id: training.id } as never)}
-                            >
-                                <Image source={{ uri: training.posterUrl }} style={styles.courseImage} />
-                                <View style={styles.courseContent}>
-                                    <Text style={styles.courseTitle}>{training.title.length > 18 ? `${training.title.substring(0, 18)}...` : training.title}</Text>
-                                    <Text style={styles.coursePrice}>{training.description.length > 60 ? `${training.description.substring(0, 60)}...` : training.description}</Text>
-                                    {/* <Text style={styles.courseRating}>
-                                        <Ionicons name="star" size={14} color="gold" />
-                                    </Text> */}
-                                </View>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                ))}
+                <View style={styles.coursesGrid}>
+                    {groupedTrainings.map((row, rowIndex) => (
+                        <View style={styles.row} key={`row-${rowIndex}`}>
+                            {row.map((training) => (
+                                <TouchableOpacity
+                                    key={training.id}
+                                    style={styles.courseCard}
+                                    onPress={() => navigation.navigate('SingleCourse', { id: training.id } as never)}
+                                >
+                                    <Image
+                                        source={{ uri: training.posterUrl }}
+                                        style={styles.courseImage}
+                                        resizeMode="cover"
+                                    />
+                                    <LinearGradient
+                                        colors={['transparent', 'rgba(0,0,0,0.7)']}
+                                        style={styles.courseImageOverlay}
+                                    />
+                                    <View style={styles.courseContent}>
+                                        <Text style={styles.courseTitle} numberOfLines={2}>
+                                            {training.title}
+                                        </Text>
+                                        <View style={styles.courseMetaContainer}>
+                                            <View style={styles.courseTypeBadge}>
+                                                <Text style={styles.courseTypeText}>Training</Text>
+                                            </View>
+                                            <View style={styles.courseLessonCount}>
+                                                <Ionicons name="document-text-outline" size={12} color="#fff" />
+                                                <Text style={styles.courseLessonText}>5 lessons</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    ))}
+                </View>
 
-                <CalendarOfEvents events={events} />
+                <EventCalendar events={events} />
 
+                {/* Spacer at the bottom for better scrolling */}
+                <View style={styles.bottomSpacer} />
             </Animated.ScrollView>
-        </View>
+        </SafeAreaView>
     );
 };
 
+// ... rest of your styles remain the same
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f6fa', paddingHorizontal: 12, marginTop: 26 },
-    addButton: {
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
-        backgroundColor: '#1E90FF',
-        borderRadius: 30,
-        width: 60,
-        height: 60,
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    scrollContent: {
+        paddingBottom: 30,
+    },
+    headerContainer: {
+        width: '100%',
+        overflow: 'hidden',
+    },
+    headerGradient: {
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 10 : 30,
+        paddingBottom: 15,
+    },
+    headerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    greeting: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: COLORS.primary,
+        marginBottom: 4,
+    },
+    username: {
+        fontSize: 16,
+        color: '#555',
+        fontWeight: '500',
+    },
+    profileButton: {
+        height: 50,
+        width: 50,
+        borderRadius: 25,
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 10,
-        shadowColor: '#000',
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-        elevation: 5,
     },
-    header: { display: "flex", flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
-    greeting: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-    subGreeting: { fontSize: 14, color: '#555', fontWeight: "normal" },
-    notificationIcon: {},
-    searchContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        alignItems: 'center',
-        marginVertical: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    searchInput: { flex: 1, color: '#333' },
-    filterIcon: { marginLeft: 8 },
-    sessionCard: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        marginVertical: 8,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
-    }
-    , sectionHeader: {
+    sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 2,
+        paddingHorizontal: 20,
+        marginTop: 25,
+        marginBottom: 15,
     },
-    viewAllSessionsButton: {
-        borderRadius: 20,
+    sectionTitleContainer: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+    },
+    titleAccent: {
+        width: 4,
+        height: 20,
+        backgroundColor: COLORS.primary,
+        borderRadius: 2,
+        marginRight: 8,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#333',
+    },
+    viewAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    viewAllText: {
+        fontSize: 14,
+        color: COLORS.primary,
+        fontWeight: '600',
     },
     viewAllSessionsText: {
         fontSize: 14,
-        color: '#1E90FF'
+        color: COLORS.primary,
+        fontWeight: '600',
+    },
+    sessionsContainer: {
+        paddingHorizontal: 20,
+    },
+    sessionCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 3,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    sessionIconContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 12,
+        backgroundColor: '#f0f8ff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
     },
     sessionContent: {
         flex: 1,
+        marginRight: 8,
     },
     sessionTitle: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#000',
+        fontWeight: '700',
+        color: '#333',
         marginBottom: 4,
     },
     sessionDescription: {
         fontSize: 14,
-        color: '#555',
-        marginBottom: 4,
+        color: '#666',
+        marginBottom: 8,
+        lineHeight: 20,
+    },
+    sessionTimeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     sessionDateTime: {
         fontSize: 12,
         color: '#777',
+        marginLeft: 4,
+    },
+    emptyStateContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 30,
+        backgroundColor: '#f9f9f9',
+        borderRadius: 16,
+        marginHorizontal: 20,
     },
     noSessions: {
         fontSize: 14,
         color: '#777',
-        textAlign: 'center',
-        marginVertical: 8,
+        marginTop: 10,
     },
-    currentCoursesHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
     courseProgressContainer: {
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 16,
+        marginHorizontal: 20,
         marginBottom: 16,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 3,
     },
     courseInfo: {
         flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
+        alignItems: 'flex-start',
     },
     bookIcon: {
-        backgroundColor: '#e6e6e6',
+        width: 60,
+        height: 60,
         borderRadius: 12,
-        padding: 12,
+        backgroundColor: '#f0f8ff',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 16,
     },
     courseDetails: {
         flex: 1,
     },
     courseName: {
         fontSize: 16,
-        fontWeight: 'bold',
-        color: '#000',
-        marginBottom: 4,
+        fontWeight: '700',
+        color: '#333',
+        marginBottom: 6,
     },
     courseIntro: {
         fontSize: 14,
-        color: '#555',
+        color: '#666',
+        marginBottom: 12,
+        lineHeight: 20,
     },
-    progressBarBackground: {
-        height: 6,
-        backgroundColor: '#e6e6e6',
-        borderRadius: 4,
-        overflow: 'hidden',
-        marginBottom: 8,
+    continueButton: {
+        backgroundColor: COLORS.primary,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'flex-start',
     },
-    progressBarFill: {
-        height: '100%',
-        backgroundColor: '#1E90FF',
-        borderRadius: 4,
+    continueButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        marginRight: 6,
     },
-    progressText: {
-        fontSize: 12,
-        color: '#777',
-        textAlign: 'right',
+    courseFilterContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 20,
     },
-    popularCoursesHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-    sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#000' },
-    seeAll: { fontSize: 14, color: '#1E90FF' },
-    courseFilterContainer: { flexDirection: 'row', marginBottom: 16 },
-    filterButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, backgroundColor: '#e6e6e6', marginRight: 8 },
-    activeFilter: { backgroundColor: '#1E90FF' },
-    filterText: { fontSize: 14, color: '#555' },
-    filterTextActive: { fontSize: 14, color: '#fff' },
+    filterButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    activeFilter: {
+        backgroundColor: '#e6f2ff',
+        borderColor: COLORS.primary,
+    },
+    filterText: {
+        fontSize: 14,
+        color: '#666',
+        fontWeight: '500',
+    },
+    filterTextActive: {
+        color: COLORS.primary,
+        fontWeight: '600',
+    },
+    coursesGrid: {
+        paddingHorizontal: 20,
+    },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16, // Space between rows
+        marginBottom: 16,
     },
     courseCard: {
+        width: (width - 50) / 2,
+        borderRadius: 16,
+        overflow: 'hidden',
         backgroundColor: '#fff',
-        borderRadius: 12,
-        width: '48%', // Each card takes up about half the width
         shadowColor: '#000',
         shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 5 },
         elevation: 5,
+        height: 180,
     },
     courseImage: {
+        height: 180,
+        width: '100%',
+    },
+    courseImageOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
         height: 100,
-        backgroundColor: '#e6e6e6',
-        borderTopRightRadius: 12,
-        borderTopLeftRadius: 12,
-        marginBottom: 8,
     },
     courseContent: {
-        paddingHorizontal: 8,
-        paddingBottom: 8,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: 12,
     },
     courseTitle: {
         fontSize: 14,
-        fontWeight: 'bold',
-        color: '#333',
+        fontWeight: '700',
+        color: '#fff',
+        marginBottom: 8,
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
-    coursePrice: {
-        fontSize: 14,
-        color: '#1E90FF',
-        marginTop: 2,
+    courseMetaContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    courseRating: {
-        fontSize: 12,
-        color: '#777',
-        marginTop: 2,
+    courseTypeBadge: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
+    },
+    courseTypeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '600',
+    },
+    courseLessonCount: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    courseLessonText: {
+        color: '#fff',
+        fontSize: 10,
+        marginLeft: 4,
+    },
+    bottomSpacer: {
+        height: 50,
     },
 });
 
